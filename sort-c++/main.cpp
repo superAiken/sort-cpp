@@ -27,7 +27,7 @@
 #include <iomanip> // to format image names using setw() and setfill()
 #include <io.h>    // to check file existence using POSIX function access(). On Linux include <unistd.h>.
 #include <set>
-
+#include <sstream>
 #include "Hungarian.h"
 #include "KalmanTracker.h"
 
@@ -71,9 +71,13 @@ void TestSORT(string seqName, bool display);
 
 int main()
 {
+	
+
+
+	
 	vector<string> sequences = { "PETS09-S2L1", "TUD-Campus", "TUD-Stadtmitte", "ETH-Bahnhof", "ETH-Sunnyday", "ETH-Pedcross2", "KITTI-13", "KITTI-17", "ADL-Rundle-6", "ADL-Rundle-8", "Venice-2" };
 	for (auto seq : sequences)
-		TestSORT(seq, false);
+		TestSORT(seq, true);
 	//TestSORT("PETS09-S2L1", true);
 
 	// Note: time counted here is of tracking procedure, while the running speed bottleneck is opening and parsing detectionFile.
@@ -94,7 +98,7 @@ void TestSORT(string seqName, bool display)
 	for (int i = 0; i < CNUM; i++)
 		rng.fill(randColor[i], RNG::UNIFORM, 0, 256);
 
-	string imgPath = "D:/Data/Track/2DMOT2015/train/" + seqName + "/img1/";
+	string imgPath = "D:/обть/archive/2DMOT2015/train/" + seqName + "/img1/";
 
 	if (display)
 		if (_access(imgPath.c_str(), 0) == -1)
@@ -187,7 +191,13 @@ void TestSORT(string seqName, bool display)
 		cerr << "Error: can not create file " << resFileName << endl;
 		return;
 	}
+	//save video
+	stringstream s;
+	
+	//s << "output/" << seqName << "." << endl;
+	string videoName = "output/"+seqName+".avi";
 
+	VideoWriter videowriter;
 	//////////////////////////////////////////////
 	// main loop
 	for (int fi = 0; fi < maxFrame; fi++)
@@ -199,7 +209,10 @@ void TestSORT(string seqName, bool display)
 		// I used to count running time using clock(), but found it seems to conflict with cv::cvWaitkey(),
 		// when they both exists, clock() can not get right result. Now I use cv::getTickCount() instead.
 		start_time = getTickCount();
-
+		/*for (int i = 0; i < detFrameData[fi].size(); i++) {
+			TrackingBox tb = detFrameData[fi][i];
+			rectangle(image, detFrameData[fi][i].box, Scalar(i * 20, i * 20, i * 20),2);
+		}*/
 		if (trackers.size() == 0) // the first frame met
 		{
 			// initialize kalman trackers using first detections.
@@ -347,24 +360,39 @@ void TestSORT(string seqName, bool display)
 		cycle_time = (double)(getTickCount() - start_time);
 		total_time += cycle_time / getTickFrequency();
 
-		for (auto tb : frameTrackingResult)
+		for (int i = 0; i < frameTrackingResult.size(); i++)
+		{
+			TrackingBox tb = frameTrackingResult[i];
 			resultsFile << tb.frame << "," << tb.id << "," << tb.box.x << "," << tb.box.y << "," << tb.box.width << "," << tb.box.height << ",1,-1,-1,-1" << endl;
+			//rectangle(image, tb.box, Scalar(i * 20, i * 20, i * 20), 5);
+		}
+
 
 		if (display) // read image, draw results and show them
 		{
+			
 			ostringstream oss;
 			oss << imgPath << setw(6) << setfill('0') << fi + 1;
 			Mat img = imread(oss.str() + ".jpg");
+			if (!videowriter.isOpened())
+			{
+				videowriter.open(videoName, CV_FOURCC('M', 'J', 'P', 'G'), 10, img.size(), 2);
+			}
 			if (img.empty())
 				continue;
-			
 			for (auto tb : frameTrackingResult)
 				cv::rectangle(img, tb.box, randColor[tb.id % CNUM], 2, 8, 0);
+			for (auto tb : detFrameData[fi])
+			{
+				rectangle(img, tb.box, randColor[tb.id % CNUM], 2, 8, 0);
+			}
+			videowriter.write(img);
 			imshow(seqName, img);
 			cvWaitKey(40);
 		}
+		
 	}
-
+	videowriter.release();
 	resultsFile.close();
 
 	if (display)
