@@ -198,21 +198,14 @@ void TestSORT(string seqName, bool display)
 	string videoName = "output/"+seqName+".avi";
 
 	VideoWriter videowriter;
+
 	//////////////////////////////////////////////
 	// main loop
 	for (int fi = 0; fi < maxFrame; fi++)
 	{
 		total_frames++;
 		frame_count++;
-		//cout << frame_count << endl;
-
-		// I used to count running time using clock(), but found it seems to conflict with cv::cvWaitkey(),
-		// when they both exists, clock() can not get right result. Now I use cv::getTickCount() instead.
 		start_time = getTickCount();
-		/*for (int i = 0; i < detFrameData[fi].size(); i++) {
-			TrackingBox tb = detFrameData[fi][i];
-			rectangle(image, detFrameData[fi][i].box, Scalar(i * 20, i * 20, i * 20),2);
-		}*/
 		if (trackers.size() == 0) // the first frame met
 		{
 			// initialize kalman trackers using first detections.
@@ -374,27 +367,31 @@ void TestSORT(string seqName, bool display)
 			ostringstream oss;
 			oss << imgPath << setw(6) << setfill('0') << fi + 1;
 			Mat img = imread(oss.str() + ".jpg");
+	
+			Mat hebin;
+			hconcat(img, img, hebin);
 			if (!videowriter.isOpened())
 			{
-				videowriter.open(videoName, CV_FOURCC('M', 'J', 'P', 'G'), 10, img.size(), 2);
+				videowriter.open(videoName, CV_FOURCC('M', 'J', 'P', 'G'), 10, hebin.size(), 2);
+				cout << hebin.size() << endl;
 			}
 			if (img.empty())
 				continue;
 			for (auto tb : frameTrackingResult)
-				cv::rectangle(img, tb.box, randColor[tb.id % CNUM], 2, 8, 0);
+				rectangle(hebin, tb.box, Scalar(255,255,255), 2, 8, 0);
 			for (auto tb : detFrameData[fi])
 			{
-				rectangle(img, tb.box, randColor[tb.id % CNUM], 2, 8, 0);
+				rectangle(hebin, Point(tb.box.x+img.cols,tb.box.y),Point(tb.box.x + img.cols+tb.box.width, tb.box.y+tb.box.height), Scalar(0, 0, 0), 2, 8, 0);
 			}
-			videowriter.write(img);
-			imshow(seqName, img);
-			cvWaitKey(40);
+			videowriter.write(hebin);
+			/*imshow(seqname, hebin);
+			cvwaitkey(40);*/
 		}
 		
 	}
 	videowriter.release();
 	resultsFile.close();
 
-	if (display)
-		destroyAllWindows();
+	/*if (display)
+		destroyallwindows();*/
 }
